@@ -139,4 +139,4 @@ docker-infrastructure/
 
 **Learning Platform:** Hands-on experience with enterprise tools and patterns including Vault, Jenkins, Prometheus, and disaster recovery procedures.
 
-## **Migration Tool:** Comprehensive tool for restoring services when doing clean OS installs or upgrading server hardware.
+**Migration Tool:** Comprehensive tool for restoring services when doing clean OS installs or upgrading server hardware.
