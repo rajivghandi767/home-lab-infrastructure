@@ -1,0 +1,440 @@
+# =============================================================================
+# Professional Infrastructure Stack
+# Enterprise-Grade services for Software Development and Deployment
+# =============================================================================
+
+services:
+  # ===========================================================================
+  # TIER 1: Core Infrastructure - Reverse Proxy & SSL
+  # ===========================================================================
+  nginx-proxy-manager:
+    container_name: nginx-proxy-manager
+    image: "jc21/nginx-proxy-manager:latest"
+    restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    ports:
+      - "80:80"
+      - "81:81"
+      - "443:443"
+    volumes:
+      - npm_data:/data
+      - npm_letsencrypt:/etc/letsencrypt
+    networks:
+      - core_network
+      - monitoring_network
+      - database_network
+      - personal_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:81/api/tokens"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    # Pi 4B Optimized Limits
+    mem_limit: 256m
+    memswap_limit: 256m
+    cpus: 0.5
+
+  # ===========================================================================
+  # TIER 2: Infrastructure Orchestration (Parallel Start)
+  # ===========================================================================
+
+  # Jenkins - CI/CD Automation
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: jenkins
+    restart: unless-stopped
+    user: root
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - ./config/jenkins:/var/jenkins_config:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/bin/docker:/usr/bin/docker
+    environment:
+      - JENKINS_OPTS=--httpPort=8080
+      - JAVA_OPTS=-Xmx1200m -Xms400m -XX:+UseG1GC -XX:+UseStringDeduplication -XX:MaxGCPauseMillis=100
+      - CASC_JENKINS_CONFIG=/var/jenkins_config
+    depends_on:
+      nginx-proxy-manager:
+        condition: service_healthy
+    networks:
+      - core_network
+      - database_network
+      - monitoring_network
+      - personal_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/login"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    mem_limit: 1500m
+    memswap_limit: 1500m
+    cpus: 2.0
+
+  # Vault - Secrets Management
+  vault:
+    image: vault:latest
+    container_name: vault
+    restart: unless-stopped
+    volumes:
+      - vault_data:/vault/data
+      - ./config/vault:/vault/config:ro
+      - vault_logs:/vault/logs
+    cap_add:
+      - IPC_LOCK
+    command: ["vault", "server", "-config=/vault/config/vault.hcl"]
+    depends_on:
+      nginx-proxy-manager:
+        condition: service_healthy
+    networks:
+      - core_network
+      - database_network
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    mem_limit: 256m
+    memswap_limit: 256m
+    cpus: 0.5
+
+  # ===========================================================================
+  # TIER 3: Data Services
+  # ===========================================================================
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine #Replace with latest stable or preferred version as needed
+    container_name: postgres
+    restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./config/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+    depends_on:
+      jenkins:
+        condition: service_healthy
+      vault:
+        condition: service_started
+    networks:
+      - database_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    mem_limit: 1200m
+    memswap_limit: 1200m
+    cpus: 1.0
+
+  # pgAdmin - Database Management UI
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+      PGADMIN_SERVER_JSON_FILE: /pgadmin4/servers.json
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./config/pgadmin/servers.json:/pgadmin4/servers.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - database_network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:80/misc/ping",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    mem_limit: 256m
+    memswap_limit: 256m
+    cpus: 0.5
+
+  # ===========================================================================
+  # TIER 4: Monitoring Stack
+  # ===========================================================================
+
+  # Prometheus - Metrics Collection
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--storage.tsdb.retention.size=2GB"
+      - "--web.console.libraries=/etc/prometheus/console_libraries"
+      - "--web.console.templates=/etc/prometheus/consoles"
+      - "--web.enable-lifecycle"
+      - "--query.max-concurrency=10"
+    volumes:
+      - prometheus_data:/prometheus
+      - ./config/prometheus:/etc/prometheus:ro
+    depends_on:
+      node-exporter:
+        condition: service_healthy
+      cadvisor:
+        condition: service_healthy
+      postgres-exporter:
+        condition: service_healthy
+    networks:
+      - monitoring_network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:9090/-/healthy",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    mem_limit: 800m
+    memswap_limit: 800m
+    cpus: 1.0
+
+  # Grafana - Visualization & Dashboards
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_SERVER_ROOT_URL=https://grafana.rajivwallace.com
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+      - GF_DATABASE_WAL=true
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    networks:
+      - monitoring_network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    mem_limit: 400m
+    memswap_limit: 400m
+    cpus: 0.5
+
+  # ===========================================================================
+  # Monitoring Exporters (Data Sources for Prometheus)
+  # ===========================================================================
+
+  # Node Exporter - System Metrics
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.rootfs=/rootfs"
+      - "--path.sysfs=/host/sys"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+    networks:
+      - monitoring_network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:9100/",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    mem_limit: 128m
+    memswap_limit: 128m
+    cpus: 0.25
+
+  # cAdvisor - Container Metrics
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor
+    container_name: cadvisor
+    restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    networks:
+      - monitoring_network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8080/healthz",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    mem_limit: 256m
+    memswap_limit: 256m
+    cpus: 0.5
+
+  # PostgreSQL Exporter - Database Metrics
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter
+    container_name: postgres-exporter
+    restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-postgres}?sslmode=disable"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - database_network
+      - monitoring_network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:9187/",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    mem_limit: 128m
+    memswap_limit: 128m
+    cpus: 0.25
+
+  # Alert Manager - Alert Routing
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    environment:
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
+    volumes:
+      - ./config/prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    depends_on:
+      nginx-proxy-manager:
+        condition: service_healthy
+    networks:
+      - monitoring_network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:9093/-/healthy",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    mem_limit: 128m
+    memswap_limit: 128m
+    cpus: 0.25
+
+# =============================================================================
+# Persistent Storage Volumes
+# =============================================================================
+volumes:
+  # Core Infrastructure
+  jenkins_home:
+    driver: local
+  vault_data:
+    driver: local
+  vault_logs:
+    driver: local
+  npm_data:
+    driver: local
+  npm_letsencrypt:
+    driver: local
+
+  # Database
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+  # Monitoring
+  grafana_data:
+    driver: local
+  prometheus_data:
+    driver: local
+
+# =============================================================================
+# Network Segmentation
+# =============================================================================
+networks:
+  # Core Infrastructure Network (Shared with Personal Services)
+  core_network:
+    driver: bridge
+    name: core_network
+
+  # Monitoring Stack Network
+  monitoring_network:
+    driver: bridge
+    name: monitoring_network
+
+  # Database Services Network
+  database_network:
+    driver: bridge
+    name: database_network
+
+  # Personal Services Network (Shared with Core)
+  personal_network:
+    driver: bridge
+    name: personal_network

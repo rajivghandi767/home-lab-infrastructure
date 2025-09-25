@@ -1,0 +1,173 @@
+# =============================================================================
+# Personal Services Extension
+# =============================================================================
+
+services:
+  # ===========================================================================
+  # Personal Network Services
+  # ===========================================================================
+
+  # Pi-hole - Network DNS + Ad Blocking
+  pihole:
+    container_name: pihole
+    image: pihole/pihole:latest
+    restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
+    hostname: rwDietPi
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+    environment:
+      TZ: "America/New_York"
+      WEBPASSWORD: ${SECURE_PASSWORD}
+    volumes:
+      - pihole_etc:/etc/pihole/
+      - pihole_dnsmasq:/etc/dnsmasq.d/
+    dns:
+      - 127.0.0.1
+      - 1.1.1.1
+    cap_add:
+      - NET_ADMIN
+    networks:
+      - personal_network
+      - core_network
+    healthcheck:
+      test:
+        ["CMD", "dig", "+short", "+tries=1", "+time=1", "@127.0.0.1", "pi.hole"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    mem_limit: 256m
+    memswap_limit: 256m
+    cpus: 0.25
+
+  # ===========================================================================
+  # Personal Media Services
+  # ===========================================================================
+
+  # Jellyfin - Personal Media Server
+  jellyfin:
+    container_name: jellyfin
+    image: jellyfin/jellyfin
+    restart: unless-stopped
+    user: 1000:1000
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    environment:
+      - JELLYFIN_PublishedServerUrl=https://jellyfin.rajivwallace.com
+      - JELLYFIN_FFmpeg__analyzeduration=200M
+      - JELLYFIN_FFmpeg__probesize=1G
+    volumes:
+      - jellyfin_config:/config
+      - jellyfin_cache:/cache
+      # Bind mount for media - adjust path as needed
+      - type: bind
+        source: /media # Update this path to your media directory
+        target: /media
+        read_only: true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - personal_network
+      - core_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8096/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    mem_limit: 800m
+    memswap_limit: 800m
+    cpus: 2.0
+
+  # ===========================================================================
+  # Personal Management Services
+  # ===========================================================================
+
+  # Portainer - Docker Container Management GUI
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    volumes:
+      - portainer_data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - personal_network
+      - core_network
+      - monitoring_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    mem_limit: 100m
+    memswap_limit: 100m
+    cpus: 0.25
+
+  # Watchtower - Automated Container Updates
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - core_network
+      - personal_network
+      - monitoring_network
+      - database_network
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    environment:
+      - WATCHTOWER_SCHEDULE=0 0 2 * * SUN # Every Sunday at 2 AM
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_INCLUDE_RESTARTING=true
+    mem_limit: 64m
+    memswap_limit: 64m
+    cpus: 0.1
+
+# =============================================================================
+# Additional Volumes for Personal Services
+# =============================================================================
+volumes:
+  # Pi-hole Data
+  pihole_etc:
+    driver: local
+  pihole_dnsmasq:
+    driver: local
+
+  # Jellyfin Data
+  jellyfin_config:
+    driver: local
+  jellyfin_cache:
+    driver: local
+
+  # Portainer Data
+  portainer_data:
+    driver: local
+
+# =============================================================================
+# Networks Reference Existing Networks from Professional Stack
+# =============================================================================
+networks:
+  # These networks are created by the main docker-compose.yml
+  # Personal services connect to them as external networks
+  core_network:
+    external: true
+    name: core_network
+
+  monitoring_network:
+    external: true
+    name: monitoring_network
+
+  database_network:
+    external: true
+    name: database_network
+
+  personal_network:
+    external: true
+    name: personal_network
