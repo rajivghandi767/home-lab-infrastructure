@@ -37,11 +37,11 @@ For disaster recovery, keep a local copy on an external USB drive:
 sudo mount /dev/sda1 /media/usb
 
 # Copy secrets
-mkdir -p /media/usb/home-lab-backup/secrets
-cp secrets/.env /media/usb/home-lab-backup/secrets/
+mkdir -p /media/usb/homelab-backup/secrets
+cp secrets/.env /media/usb/homelab-backup/secrets/
 
 # Download latest backups from GCS
-gsutil -m rsync -r gs://home-lab-backups-rajiv /media/usb/home-lab-backup/gcs/
+gsutil -m rsync -r gs://homelab-backups-rajiv /media/usb/homelab-backup/gcs/
 
 # Unmount
 sudo umount /media/usb
@@ -53,10 +53,10 @@ If GCS is unavailable, you can restore from local USB:
 
 ```bash
 # Copy secrets
-cp /media/usb/home-lab-backup/secrets/.env secrets/.env
+cp /media/usb/homelab-backup/secrets/.env secrets/.env
 
 # Copy backups to local directory
-cp -r /media/usb/home-lab-backup/gcs/* backups/
+cp -r /media/usb/homelab-backup/gcs/* backups/
 
 # Then use Jenkins restore jobs or manual restore
 ```

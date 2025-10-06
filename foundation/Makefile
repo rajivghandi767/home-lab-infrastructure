@@ -81,8 +81,8 @@ restore-foundation:
 	@echo "Downloading NPM backup..."
 	@. ../secrets/.env && \
 	mkdir -p /tmp/npm-restore && \
-	gsutil cp gs://home-lab-infrastructure-backups-rajiv/nginx-proxy-manager/nginx-proxy-manager-data-latest.tar.gz.enc /tmp/npm-restore/ 2>/dev/null || \
-	gsutil cp gs://home-lab-infrastructure-backups-rajiv/npm/npm-data-latest.tar.gz.enc /tmp/npm-restore/backup.tar.gz.enc 2>/dev/null || \
+	gsutil cp gs://homelab-backups-rajiv/nginx-proxy-manager/nginx-proxy-manager-data-latest.tar.gz.enc /tmp/npm-restore/ 2>/dev/null || \
+	gsutil cp gs://homelab-backups-rajiv/npm/npm-data-latest.tar.gz.enc /tmp/npm-restore/backup.tar.gz.enc 2>/dev/null || \
 	(echo "⚠️  No NPM backup found in GCS, skipping NPM restore" && rm -rf /tmp/npm-restore)
 	@if [ -d "/tmp/npm-restore" ] && [ -f "/tmp/npm-restore/"*.enc ]; then \
 		echo "Decrypting and extracting NPM data..."; \
@@ -96,7 +96,7 @@ restore-foundation:
 	@echo "Downloading Jenkins backup..."
 	@. ../secrets/.env && \
 	mkdir -p /tmp/jenkins-restore && \
-	gsutil cp gs://home-lab-infrastructure-backups-rajiv/jenkins/jenkins-data-latest.tar.gz.enc /tmp/jenkins-restore/ 2>/dev/null || \
+	gsutil cp gs://homelab-backups-rajiv/jenkins/jenkins-data-latest.tar.gz.enc /tmp/jenkins-restore/ 2>/dev/null || \
 	(echo "⚠️  No Jenkins backup found in GCS, skipping Jenkins restore" && rm -rf /tmp/jenkins-restore)
 	@if [ -d "/tmp/jenkins-restore" ] && [ -f "/tmp/jenkins-restore/jenkins-data-latest.tar.gz.enc" ]; then \
 		echo "Decrypting and extracting Jenkins data..."; \
@@ -190,26 +190,26 @@ backup-usb:
 		echo "   sudo mount /dev/sda1 /media/usb"; \
 		exit 1; \
 	fi
-	@mkdir -p /media/usb/home-lab-infrastructure-backup/secrets
+	@mkdir -p /media/usb/homelab-backup/secrets
 	@if [ -f "../secrets/.env" ]; then \
-		cp ../secrets/.env /media/usb/home-lab-infrastructure-backup/secrets/ && \
+		cp ../secrets/.env /media/usb/homelab-backup/secrets/ && \
 		echo "✅ Backed up .env"; \
 	else \
 		echo "⚠️  secrets/.env not found, skipping"; \
 	fi
 	@echo ""
 	@echo "💡 To also backup GCS data, run:"
-	@echo "   gsutil -m rsync -r gs://home-lab-infrastructure-backups-rajiv /media/usb/home-lab-infrastructure-backup/gcs/"
+	@echo "   gsutil -m rsync -r gs://homelab-backups-rajiv /media/usb/homelab-backup/gcs/"
 
 restore-usb:
 	@echo "📥 Restoring secrets from USB..."
-	@if [ ! -d "/media/usb/home-lab-infrastructure-backup/secrets" ]; then \
-		echo "❌ Backup not found at /media/usb/home-lab-infrastructure-backup/secrets"; \
+	@if [ ! -d "/media/usb/homelab-backup/secrets" ]; then \
+		echo "❌ Backup not found at /media/usb/homelab-backup/secrets"; \
 		echo "   Is your USB drive mounted?"; \
 		exit 1; \
 	fi
-	@if [ -f "/media/usb/home-lab-infrastructure-backup/secrets/.env" ]; then \
-		cp /media/usb/home-lab-infrastructure-backup/secrets/.env ../secrets/.env && \
+	@if [ -f "/media/usb/homelab-backup/secrets/.env" ]; then \
+		cp /media/usb/homelab-backup/secrets/.env ../secrets/.env && \
 		echo "✅ Restored .env"; \
 	else \
 		echo "❌ .env not found in backup"; \

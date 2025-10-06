@@ -42,5 +42,5 @@ Once deployed, this application will:
 
 ## Notes
 
-- This is a separate Git repository - do not commit it as part of home-lab-infrastructure
+- This is a separate Git repository - do not commit it as part of homelab-iac
 - See the main repository for detailed setup and deployment instructions
