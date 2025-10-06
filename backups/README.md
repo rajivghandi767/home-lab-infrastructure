@@ -1,0 +1,62 @@
+# Backups Directory
+
+This directory is for **LOCAL backups only** and is **NOT committed to Git**.
+
+## Structure
+
+Cloud backups are stored in Google Cloud Storage at:
+
+```
+gs://homelab-backups-rajiv/
+├── npm/
+│   └── nginx-proxy-manager-data-YYYY-MM-DD.tar.gz.enc
+├── jenkins/
+│   └── jenkins-data-YYYY-MM-DD.tar.gz.enc
+├── vault/
+│   └── vault-data-YYYY-MM-DD.tar.gz.enc
+├── pihole/
+│   └── pihole-data-YYYY-MM-DD.tar.gz.enc
+├── portainer/
+│   └── portainer-data-YYYY-MM-DD.tar.gz.enc
+├── postgres-dev/
+│   └── postgres-dev-data-YYYY-MM-DD.tar.gz.enc
+├── grafana/
+│   └── grafana-data-YYYY-MM-DD.tar.gz.enc
+├── prometheus/
+│   └── prometheus-data-YYYY-MM-DD.tar.gz.enc
+└── jellyfin/
+    └── jellyfin-data-YYYY-MM-DD.tar.gz.enc
+```
+
+## Local USB Backup
+
+For disaster recovery, keep a local copy on an external USB drive:
+
+```bash
+# Mount USB drive
+sudo mount /dev/sda1 /media/usb
+
+# Copy secrets
+mkdir -p /media/usb/home-lab-backup/secrets
+cp secrets/.env /media/usb/home-lab-backup/secrets/
+
+# Download latest backups from GCS
+gsutil -m rsync -r gs://home-lab-backups-rajiv /media/usb/home-lab-backup/gcs/
+
+# Unmount
+sudo umount /media/usb
+```
+
+## Restoring from Local Backup
+
+If GCS is unavailable, you can restore from local USB:
+
+```bash
+# Copy secrets
+cp /media/usb/home-lab-backup/secrets/.env secrets/.env
+
+# Copy backups to local directory
+cp -r /media/usb/home-lab-backup/gcs/* backups/
+
+# Then use Jenkins restore jobs or manual restore
+```

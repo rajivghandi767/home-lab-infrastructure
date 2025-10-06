@@ -1,0 +1,71 @@
+services:
+  pihole:
+    container_name: pihole
+    image: pihole/pihole:latest
+    restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
+    hostname: rwHomeLab
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "67:67/udp"
+    env_file:
+      - ../../secrets/.env
+    environment:
+      TZ: "America/New_York"
+      WEBPASSWORD: ${SECURE_PASSWORD}
+    volumes:
+      - ./pihole/etc-pihole:/etc/pihole
+      - ./pihole/etc-dnsmasq.d:/etc/dnsmasq.d
+    dns:
+      - 127.0.0.1
+      - 1.1.1.1
+    cap_add:
+      - NET_ADMIN
+    networks:
+      - core
+    healthcheck:
+      test:
+        ["CMD", "dig", "+short", "+tries=1", "+time=1", "@127.0.0.1", "pi.hole"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    volumes:
+      - portainer_data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - management
+
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    restart: unless-stopped
+    env_file:
+      - ../../secrets/.env
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - management
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+volumes:
+  portainer_data:
+    driver: local
+
+networks:
+  core:
+    external: true
+    name: core
+  management:
+    external: true
+    name: management
