@@ -59,7 +59,6 @@ homelab-iac/
 │   ├── monitoring/                       # Prometheus, Grafana, exporters
 │   ├── media/                            # Jellyfin
 │   └── applications/                     # Portfolio Website, Country Trivia
-├── jenkins/                              # Jenkins job definitions
 └── secrets/                              # Local secrets (not committed)
     └── .env.example
 ```
@@ -230,8 +229,7 @@ base64 -i gcs-key.json | tr -d '\n'
 
 | Network      | Purpose               | Services                                |
 | ------------ | --------------------- | --------------------------------------- |
-| `core`       | Core infrastructure   | NPM, Pihole, Vault                      |
-| `management` | Container management  | Jenkins, Portainer, Watchtower          |
+| `core`       | Core infrastructure   | All services needing url resolution     |
 | `database`   | Database services     | PostgreSQL, pgAdmin, postgres-exporter  |
 | `monitoring` | Monitoring & alerting | Prometheus, Grafana, Alertmanager       |
 | `media`      | Jellyfin              | Jellyfin, Portfolio, Trivia             |
@@ -349,7 +347,7 @@ make init
 
 ### What Requires Manual Steps
 
-⚠️ **Vault Unsealing** - Run your existing unseal pipeline after Vault deploys  
+⚠️ **Vault Unsealing** - Run existing unseal pipeline after Vault deploys  
 ⚠️ **Application Deployment** - Clone Portfolio and Trivia repos into their directories
 
 ## 📚 Documentation

@@ -1,0 +1,33 @@
+services:
+  jellyfin:
+    container_name: jellyfin
+    image: jellyfin/jellyfin
+    restart: unless-stopped
+    user: 1000:1000
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    networks:
+      - core
+      - media
+    volumes:
+      - ./jellyfin/config:/config
+      - ./jellyfin/cache:/cache
+      - type: bind
+        source: /media
+        target: /media
+        read_only: true
+    environment:
+      - JELLYFIN_PublishedServerUrl=https://jellyfin.rajivwallace.com
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8096/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  core:
+    external: true
+  media:
+    external: true

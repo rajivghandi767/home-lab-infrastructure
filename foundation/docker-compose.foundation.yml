@@ -1,0 +1,49 @@
+services:
+  nginx:
+    container_name: nginx
+    image: "jc21/nginx-proxy-manager:latest"
+    restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    ports:
+      - "80:80"
+      - "81:81"
+      - "443:443"
+    volumes:
+      - ./services/core/nginx-proxy-manager/data:/data
+      - ./services/core/nginx-proxy-manager/letsencrypt:/etc/letsencrypt
+    networks:
+      - core
+    healthcheck:
+      test: ["CMD", "/usr/bin/check-health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 40s
+
+  jenkins:
+    build: ./core/jenkins
+    container_name: jenkins
+    restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    user: root
+    volumes:
+      - jenkins_data:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - core
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/login || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+volumes:
+  jenkins_data:
+    driver: local
+
+networks:
+  core:
+    external: true

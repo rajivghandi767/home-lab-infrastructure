@@ -1,0 +1,30 @@
+services:
+  postgres-dev:
+    image: postgres:18-alpine
+    container_name: postgres-dev
+    restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    env_file:
+      - ./secrets/.env
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data/
+    ports:
+      - "5433:5432"
+    networks:
+      - database
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  postgres_dev_data:
+    driver: local
+networks:
+  database:
+    external: true

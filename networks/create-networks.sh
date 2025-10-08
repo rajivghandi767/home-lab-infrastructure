@@ -7,8 +7,7 @@ echo "Creating Docker Networks for Home Lab Infrastructure..."
 
 # Define networks
 NETWORKS=(
-    "core"           # NPM, Pihole, Vault
-    "management"     # Jenkins, Portainer, Watchtower
+    "core"           # All services that need access for url resolution 
     "database"       # Postgres Dev, pgAdmin, postgres-exporter
     "monitoring"     # Prometheus, Grafana, Node-Exporters, Alertmanager
     "media"          # Jellyfin
@@ -30,4 +29,4 @@ echo ""
 echo "Network creation complete!"
 echo ""
 echo "Created Networks:"
-docker network ls | grep -E "core|management|database|monitoring|media|portfolio|trivia"
+docker network ls | grep -E "core|database|monitoring|media|portfolio|trivia"
