@@ -4,15 +4,15 @@ services:
     container_name: prometheus
     restart: unless-stopped
     command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--config.file=/etc/prometheus/config_dir/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
       - "--storage.tsdb.retention.time=30d"
       - "--web.console.libraries=/etc/prometheus/console_libraries"
       - "--web.console.templates=/etc/prometheus/consoles"
       - "--web.enable-lifecycle"
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-      - ./alert_rules.yml:/etc/prometheus/alert_rules.yml
+      - prom_config:/etc/prometheus/config_dir:ro
+      - prom_alert_rules:/etc/prometheus/alerts_dir:ro
       - prometheus_data:/prometheus
     networks:
       - core
@@ -37,13 +37,11 @@ services:
     image: grafana/grafana
     container_name: grafana
     restart: unless-stopped
-    env_file:
-      - ../secrets/.env
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning
+      - grafana_provisioning:/etc/grafana/provisioning:ro
     depends_on:
       - prometheus
     networks:
@@ -64,7 +62,7 @@ services:
       - /:/rootfs:ro
       - /var/run:/var/run:rw
       - /sys:/sys:ro
-      - /var/lib/docker:/var/lib/docker:ro
+      - /mnt/dockerdata:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
     devices:
       - /dev/kmsg:/dev/kmsg
@@ -144,7 +142,7 @@ services:
     environment:
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
     volumes:
-      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager_config:/etc/alertmanager/config_dir:ro
     networks:
       - core
       - monitoring
@@ -164,9 +162,17 @@ services:
 
 volumes:
   grafana_data:
-    driver: local
+    name: grafana_data
   prometheus_data:
-    driver: local
+    name: prometheus_data
+  prom_config:
+    name: prom_config
+  prom_alert_rules:
+    name: prom_alert_rules
+  grafana_provisioning:
+    name: grafana_provisioning
+  alertmanager_config:
+    name: alertmanager_config
 
 networks:
   core:

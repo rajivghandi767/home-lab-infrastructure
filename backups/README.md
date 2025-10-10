@@ -24,6 +24,10 @@ gs://homelab-backups-rajiv/
 │   └── grafana-data-YYYY-MM-DD.tar.gz.enc
 ├── prometheus/
 │   └── prometheus-data-YYYY-MM-DD.tar.gz.enc
+├── portfolio-website/
+│   └── portfolio-data-YYYY-MM-DD.tar.gz.enc
+├── trivia-app/
+│   └── trivia-data-YYYY-MM-DD.tar.gz.enc
 └── jellyfin/
     └── jellyfin-data-YYYY-MM-DD.tar.gz.enc
 ```
@@ -34,7 +38,7 @@ For disaster recovery, keep a local copy on an external USB drive:
 
 ```bash
 # Mount USB drive
-sudo mount /dev/sda1 /media/usb
+sudo mount /dev/sda1 /media/usb #Edit your mount drive path to match
 
 # Copy secrets
 mkdir -p /media/usb/homelab-backup/secrets

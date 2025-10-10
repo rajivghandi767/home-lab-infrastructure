@@ -10,11 +10,11 @@ services:
       - core
       - media
     volumes:
-      - ./jellyfin/config:/config
-      - ./jellyfin/cache:/cache
+      - jellyfin_config:/config
+      - jellyfin_cache:/cache
       - type: bind
-        source: /media
-        target: /media
+        source: /mnt/media
+        target: /mnt/media
         read_only: true
     environment:
       - JELLYFIN_PublishedServerUrl=https://jellyfin.rajivwallace.com
@@ -25,6 +25,11 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+volumes:
+  jellyfin_config:
+    name: jellyfin_config
+  jellyfin_cache:
+    name: jellyfin_cache
 
 networks:
   core:

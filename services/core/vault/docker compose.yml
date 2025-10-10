@@ -11,7 +11,7 @@ services:
       - VAULT_ADDR=http://127.0.0.1:8200
     command: server
     volumes:
-      - ./config/vault.hcl:/vault/config/vault.hcl:ro
+      - vault_config:/vault/config:ro
       - vault_data:/vault/data
       - vault_logs:/vault/logs
     networks:
@@ -25,10 +25,12 @@ services:
       start_period: 30s
 
 volumes:
+  vault_config:
+    name: vault_config
   vault_data:
-    driver: local
+    name: vault_data
   vault_logs:
-    driver: local
+    name: vault_logs
 
 networks:
   core:

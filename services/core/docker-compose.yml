@@ -9,15 +9,14 @@ services:
     ports:
       - "53:53/tcp" # DNS over TCP
       - "53:53/udp" # DNS over UDP
-      - "67:67/udp" # DHCP
     env_file:
       - ../secrets/.env
     environment:
       TZ: "America/New_York"
       WEBPASSWORD: $SECURE_PASSWORD
     volumes:
-      - "./etc-pihole/:/etc/pihole/"
-      - "./etc-dnsmasq.d/:/etc/dnsmasq.d/"
+      - pihole_config:/etc/pihole/
+      - pihole_dnsmasq:/etc/dnsmasq.d/
     dns:
       - 127.0.0.1
       - 1.1.1.1
@@ -39,7 +38,7 @@ services:
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
     volumes:
-      - data:/data
+      - portainer_data:/data
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - core
@@ -59,8 +58,12 @@ services:
       - "com.centurylinklabs.watchtower.enable=true"
 
 volumes:
-  data:
-    driver: local
+  pihole_config:
+    name: pihole_config
+  pihole_dnsmasq:
+    name: pihole_dnsmasq
+  portainer_data:
+    name: portainer_data
 
 networks:
   core:

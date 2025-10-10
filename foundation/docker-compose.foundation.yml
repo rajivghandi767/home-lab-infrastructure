@@ -10,8 +10,8 @@ services:
       - "81:81"
       - "443:443"
     volumes:
-      - ./services/core/nginx-proxy-manager/data:/data
-      - ./services/core/nginx-proxy-manager/letsencrypt:/etc/letsencrypt
+      - npm_data:/data
+      - npm_letsencrypt:/etc/letsencrypt
     networks:
       - core
     healthcheck:
@@ -22,7 +22,7 @@ services:
       start_period: 40s
 
   jenkins:
-    build: ./core/jenkins
+    build: ./services/core/jenkins
     container_name: jenkins
     restart: unless-stopped
     labels:
@@ -41,6 +41,10 @@ services:
       start_period: 90s
 
 volumes:
+  npm_data:
+    name: npm_data
+  npm_letsencrypt:
+    name: npm_letsencrypt
   jenkins_data:
     driver: local
 

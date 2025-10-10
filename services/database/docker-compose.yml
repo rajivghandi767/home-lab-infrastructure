@@ -24,7 +24,8 @@ services:
 
 volumes:
   postgres_dev_data:
-    driver: local
+    name: postgres_dev_data
+
 networks:
   database:
     external: true
